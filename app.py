@@ -13,15 +13,22 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 import os 
+import json
+import subprocess
+
+# AIPROXY_TOKEN = os.getenv("AIPROXY_TOKEN")
+AIPROXY_TOKEN = os.environ.get("AIPROXY_TOKEN")
+if not AIPROXY_TOKEN:
+    raise ValueError("AIPROXY_TOKEN environment variable is not set. Please set it before running the script.")
 
 app = FastAPI()
 
 app.add_middleware (
     CORSMiddleware,
     allow_origins = ['*'],
-    allow_credentials = True,
-    allow_methods = ['GET', 'POST'],
-    allow_headers = ['*']
+    allow_credentials=True,
+    allow_methods=['GET', 'POST'],
+    allow_headers=['*']
 )
 
 tools = [
@@ -51,8 +58,6 @@ tools = [
     }
 ]
 
-AIPROXY_TOKEN = os.getenv("AIPROXY_TOKEN")
-
 @app.get("/")
 def home():
     return{"Test to be displayed"}
@@ -69,7 +74,7 @@ def read_file(path: str):
 def task_runner(task: str):
     url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
     headers = {
-        "Content-type": "application/json",
+        "Content-Type": "application/json",
         "Authorization":f"Bearer {AIPROXY_TOKEN}"
     }
     data = {
@@ -93,9 +98,15 @@ If your task involves writing a code, you can use the task_runner tool.
     }
 
     response = requests.post(url=url, headers=headers, json=data)
-    print(data)
-    return response.json()['choices'][0]['message']['tool_calls'][0]['function']
+    
+    argument = response.json()['choices'][0]['message']['tool_calls'][0]['function']['arguments']
+    arguments = json.loads(argument)
+    script_url = arguments['script_url']
+    email = arguments['args'][0]
+    commands = ["uv", "run", script_url, email]
+    subprocess.run(commands)
 
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run (app, host="0.0.0.0", port=8000)
+
