@@ -16,6 +16,6 @@ WORKDIR /app
 
 RUN mkdir -p /data
 
-COPY app.py /app
+COPY . /app/
 
 CMD [ "uv", "run", "app.py" ]
